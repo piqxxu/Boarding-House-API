@@ -18,4 +18,26 @@ class RoomController extends Controller
             'data' => $rooms
         ], 200);
     }
+
+    //ADMIN ONLY
+    // Add Room
+    public function store(Request $request)
+    {
+        // Validasi Input 
+        $validated = $request->validate([
+            'room_number' => 'required|unique:rooms', // Nomor kamar tidak boleh sama
+            'price' => 'required|numeric',
+            'status' => 'required|in:available,occupied,maintenance',
+            'floor' => 'required',
+            'facilities' => 'nullable|string',
+        ]);
+
+        // Save to Database
+        $room = Room::create($validated);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Kamar berhasil ditambahkan!',
+            'data' => $room
+        ], 201); 
+    }
 }

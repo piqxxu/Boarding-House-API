@@ -9,8 +9,17 @@ use App\Http\Controllers\Api\AuthController;
 Route::get('/rooms', [RoomController::class, 'index']);
 Route::post('/login', [AuthController::class, 'login']);
 
+
+
 // Route Private (Harus punya Token)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     
+});
+// (Butuh Token)
+Route::middleware('auth:sanctum')->group(function () {  
+    // Add Room
+    Route::post('/rooms', [RoomController::class, 'store']); 
+    // Logout
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
