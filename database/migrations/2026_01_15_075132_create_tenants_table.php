@@ -23,7 +23,6 @@ return new class extends Migration
             $table->enum('status', ['active', 'history'])->default('active')->index();
             
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

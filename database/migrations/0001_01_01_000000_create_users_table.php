@@ -15,15 +15,15 @@ public function up(): void
         $table->id();
         $table->string('name');
         $table->string('email')->unique();
+        $table->timestamp('email_verified_at')->nullable();
         $table->string('password');
         $table->enum('role', ['admin', 'tenant'])->default('tenant')->index(); 
         $table->string('phone_number')->nullable();
         $table->string('avatar_url')->nullable(); 
         $table->rememberToken();
         $table->timestamps();
-        $table->softDeletes(); 
     });
-}
+}       
 
     /**
      * Reverse the migrations.

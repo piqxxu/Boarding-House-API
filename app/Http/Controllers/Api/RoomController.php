@@ -40,4 +40,54 @@ class RoomController extends Controller
             'data' => $room
         ], 201); 
     }
+
+    public function show($id)
+    {
+        $room = Room::find($id);
+        if (!$room) {
+            return response()->json(['status' => 'error', 'message' => 'Kamar tidak ditemukan'], 404);
+        }
+        return response()->json(['status' => 'success', 'data' => $room], 200);
+    }
+
+    // Update
+    public function update(Request $request, $id)
+    {
+        $room = Room::find($id);
+        if (!$room) {
+            return response()->json(['status' => 'error', 'message' => 'Kamar tidak ditemukan'], 404);
+        }
+        // Validasi 
+        $validated = $request->validate([
+            'room_number' => 'sometimes|unique:rooms,room_number,' . $id,
+            'price' => 'sometimes|numeric',
+            'status' => 'sometimes|in:available,occupied,maintenance',
+            'floor' => 'sometimes',
+            'facilities' => 'nullable|string',
+        ]);
+
+        $room->update($validated);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data kamar berhasil diupdate!',
+            'data' => $room
+        ], 200);
+    }
+
+    // Delete
+    public function destroy($id)
+    {
+        $room = Room::find($id);
+        if (!$room) {
+            return response()->json(['status' => 'error', 'message' => 'Kamar tidak ditemukan'], 404);
+        }
+
+        $room->delete(); 
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Kamar berhasil dihapus.'
+        ], 200);
+    }
 }

@@ -19,5 +19,7 @@ class AdminSeeder extends Seeder
             'role' => 'admin',
             'phone_number' => '081234567890',
         ]);
+
+        
     }
 }

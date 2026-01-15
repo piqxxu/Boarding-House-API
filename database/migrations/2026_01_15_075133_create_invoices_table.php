@@ -23,7 +23,6 @@ return new class extends Migration
             $table->enum('status', ['unpaid', 'paid', 'overdue', 'cancelled'])->default('unpaid')->index();
             
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

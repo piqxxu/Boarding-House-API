@@ -13,13 +13,11 @@ Route::post('/login', [AuthController::class, 'login']);
 
 // Route Private (Harus punya Token)
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    
-});
-// (Butuh Token)
-Route::middleware('auth:sanctum')->group(function () {  
-    // Add Room
-    Route::post('/rooms', [RoomController::class, 'store']); 
-    // Logout
-    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/rooms', [RoomController::class, 'store']); //Add
+    Route::get('/rooms/{id}', [RoomController::class, 'show']); // Lihat Detail
+    Route::put('/rooms/{id}', [RoomController::class, 'update']); // Edit
+    Route::delete('/rooms/{id}', [RoomController::class, 'destroy']); // Hapus
+    // Route::post('/tenants', [TenantController::class, 'store']); //Check-in
+    Route::post('/tenants', [\App\Http\Controllers\Api\TenantController::class, 'store']);
+    Route::post('/logout', [AuthController::class, 'logout']); //Logout
 });
