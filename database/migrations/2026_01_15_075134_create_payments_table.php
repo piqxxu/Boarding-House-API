@@ -6,32 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-
     public function up(): void
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('invoice_id')->constrained()->onDelete('cascade');
+            // Ini kolom yang tadi dibilang "Not Found"
+            $table->foreignId('tenant_id')->constrained('tenants')->onDelete('cascade');
             
-            $table->decimal('amount_paid', 12, 0);
-            $table->string('payment_method')->nullable(); // 'BCA', 'Cash', 'QRIS'
-            $table->string('proof_image')->nullable(); // URL foto bukti transfer
-            $table->dateTime('paid_at');
-            
-            // Status verifikasi admin
-            $table->enum('status', ['pending', 'verified', 'rejected'])->default('pending')->index();
-            $table->string('rejection_reason')->nullable();
-            
+            $table->decimal('amount', 10, 2); // Kolom Jumlah Uang
+            $table->string('status'); // Kolom Status (paid/pending)
+            $table->date('due_date'); // Kolom Jatuh Tempo
+            $table->timestamp('paid_at')->nullable(); // Kolom Tanggal Bayar
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('payments');
