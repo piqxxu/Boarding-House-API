@@ -11,5 +11,5 @@ if (container) {
     root.render(<App />);
 } else {
     // Kalau ini muncul di Console, berarti HTML welcome.blade.php salah
-    console.error("❌ GAWAT! Elemen id='app' gak ketemu. Cek welcome.blade.php!");
+    console.error("Elemen id='app' gak ketemu. Cek welcome.blade.php!");
 }

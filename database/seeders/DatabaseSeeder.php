@@ -16,8 +16,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-        AdminSeeder::class, // <-- Tambahin ini
-        RoomSeeder::class,  // <-- Tambahin ini juga biar kamar otomatis ada
+        AdminSeeder::class, 
+        RoomSeeder::class,  
+        DummyDataSeeder::class,
     ]);
 
     User::factory()->create([

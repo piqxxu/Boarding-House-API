@@ -13,7 +13,6 @@ class DummyDataSeeder extends Seeder
 {
     public function run()
     {
-        // 1. Bikin User Penyewa (Kalau belum ada)
         $user = User::firstOrCreate(
             ['email' => 'penyewa@test.com'],
             [
@@ -29,7 +28,7 @@ class DummyDataSeeder extends Seeder
             ['room_number' => '101'],
             [
                 'price' => 1500000,
-                'status' => 'occupied', // Kita set langsung terisi
+                'status' => 'occupied', 
                 'floor' => 1,
                 'facilities' => 'AC, Wifi, Kamar Mandi Dalam'
             ]

@@ -7,49 +7,70 @@ use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Models\Tenant;
 use App\Models\Payment;
+use Carbon\Carbon; // Library buat manipulasi Tanggal
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        // 1. STATISTIK DASAR
         $totalRooms = Room::count();
-
-        // Kamar Terisi (Cek kolom status = 'occupied')
         $occupiedRooms = Room::where('status', 'occupied')->count();
-
-        // Total Penyewa Aktif (Cek kolom status = 'active')
         $totalTenants = Tenant::where('status', 'active')->count();
-
-        // Pendapatan Bulan Ini
-        $monthlyRevenue = Payment::where('status', 'paid') // Hanya yang lunas
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
+        
+        $monthlyRevenue = Payment::whereMonth('due_date', now()->month)
+            ->whereYear('due_date', now()->year)
+            ->where('status', 'paid') // Hanya hitung yang lunas
             ->sum('amount');
 
+        // 2. LOGIKA REMINDER H-7 (JATUH TEMPO)
+        // Ambil semua penyewa aktif
+        $activeTenants = Tenant::with(['user', 'room'])->where('status', 'active')->get();
+        $reminders = [];
 
-        // DATA TABEL PEMBAYARAN TERBARU
-        $recentPayments = Payment::with(['tenant.user', 'tenant.room']) // Eager Load biar query cepet
-            ->latest() // Urutkan dari yang terbaru
-            ->take(5)  // Ambil 5 aja
+        foreach ($activeTenants as $tenant) {
+            // Tentukan tanggal jatuh tempo bulan ini berdasarkan 'due_date' (tgl 1-31)
+            $dueDateThisMonth = Carbon::createFromDate(null, null, $tenant->due_date);
+            
+            // Kalau tanggal itu sudah lewat (misal skrg tgl 20, jatuh tempo tgl 5),
+            // Berarti kita cek target jatuh tempo BULAN DEPAN.
+            if ($dueDateThisMonth->isPast()) {
+                $nextDueDate = $dueDateThisMonth->copy()->addMonth();
+            } else {
+                $nextDueDate = $dueDateThisMonth;
+            }
+
+            // Hitung selisih hari dari SEKARANG sampai JATUH TEMPO
+            $daysLeft = now()->diffInDays($nextDueDate, false); // false = biar bisa minus (kalau telat)
+
+            // KONDISI: Kalau sisa hari antara 0 sampai 7 (H-7) ATAU minus (Telat)
+            if ($daysLeft <= 7) {
+                $status = $daysLeft < 0 ? 'Telat ' . abs(intval($daysLeft)) . ' Hari!' : 'H-' . intval($daysLeft);
+                
+                $reminders[] = [
+                    'id' => $tenant->id,
+                    'name' => $tenant->user->name,
+                    'room' => $tenant->room->room_number,
+                    'dueDate' => $nextDueDate->format('Y-m-d'), // Format: 2026-02-05
+                    'daysLeft' => intval($daysLeft), // Buat logic warna di frontend
+                    'statusText' => $status
+                ];
+            }
+        }
+
+        // 3. PEMBAYARAN TERBARU
+        $recentPayments = Payment::with(['tenant.user', 'tenant.room'])
+            ->latest()
+            ->take(5)
             ->get()
             ->map(function ($payment) {
-                // Kita ambil data user dari relasi: Payment -> Tenant -> User
-                $tenantName = $payment->tenant && $payment->tenant->user 
-                    ? $payment->tenant->user->name 
-                    : 'Mantan Penghuni'; // Fallback kalau datanya udah diapus
-
-                // Kita ambil nomor kamar dari relasi: Payment -> Tenant -> Room
-                $roomNumber = $payment->tenant && $payment->tenant->room 
-                    ? $payment->tenant->room->room_number 
-                    : 'N/A';
-
                 return [
                     'id' => $payment->id,
-                    'tenantName' => $tenantName,
-                    'roomNumber' => $roomNumber,
+                    'tenantName' => $payment->tenant ? $payment->tenant->user->name : 'Mantan Penghuni',
+                    'roomNumber' => $payment->tenant ? $payment->tenant->room->room_number : '?',
                     'amount' => $payment->amount,
-                    'dueDate' => $payment->due_date ?? $payment->created_at->format('Y-m-d'),
-                    'status' => ucfirst($payment->status) 
+                    'dueDate' => $payment->due_date,
+                    'status' => ucfirst($payment->status)
                 ];
             });
 
@@ -60,6 +81,7 @@ class DashboardController extends Controller
                 'totalTenants' => $totalTenants,
                 'monthlyRevenue' => (int) $monthlyRevenue,
             ],
+            'reminders' => $reminders, // <-- DATA BARU DIKIRIM KE SINI
             'recentPayments' => $recentPayments
         ]);
     }

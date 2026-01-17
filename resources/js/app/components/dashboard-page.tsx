@@ -1,213 +1,237 @@
-import { useEffect, useState } from 'react'; // Tambah useEffect & useState
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { Home, Users, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
+import { Home, Users, DollarSign, TrendingUp, Loader2, BellRing, CalendarClock } from 'lucide-react';
+
+// Tipe Data
+interface Reminder {
+  id: number;
+  name: string;
+  room: string;
+  dueDate: string;
+  daysLeft: number;
+  statusText: string;
+}
+
+interface DashboardStats {
+  stats: {
+    totalRooms: number;
+    occupiedRooms: number;
+    totalTenants: number;
+    monthlyRevenue: number;
+  };
+  reminders: Reminder[]; 
+  recentPayments: any[];
+}
 
 export function DashboardPage() {
-  // 1. Siapkan State buat nampung data dari Laravel
-  const [stats, setStats] = useState({
-    totalRooms: 0,
-    occupiedRooms: 0,
-    totalTenants: 0,
-    monthlyRevenue: 0
-  });
-  const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [data, setData] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 2. Ambil data pas halaman dibuka
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('auth_token'); // Ambil token login
-        const response = await fetch('http://127.0.0.1:8000/api/dashboard-stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`, 
-            'Accept': 'application/json'
-          }
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch('http://127.0.0.1:8000/api/dashboard-stats', {
+            headers: { "Authorization": `Bearer ${token}` }
         });
-
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data.stats);
-          setRecentPayments(data.recentPayments);
-        }
+        const result = await res.json();
+        setData(result);
       } catch (error) {
-        console.error("Gagal ambil data dashboard:", error);
+        console.error("Gagal load dashboard", error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    fetchData();
+    fetchStats();
   }, []);
 
-  // Hitung Occupancy Rate 
-  const occupancyRate = stats.totalRooms > 0 
-    ? ((stats.occupiedRooms / stats.totalRooms) * 100).toFixed(0) 
-    : 0;
-
-  const statCards = [
-    {
-      title: 'Total Kamar',
-      value: stats.totalRooms,
-      icon: Home,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-    },
-    {
-      title: 'Kamar Terisi',
-      value: stats.occupiedRooms,
-      icon: Users,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-    },
-    {
-      title: 'Total Penyewa',
-      value: stats.totalTenants,
-      icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-    },
-    {
-      title: 'Pendapatan Bulanan',
-      // Format ke Rupiah
-      value: `Rp ${stats.monthlyRevenue.toLocaleString('id-ID')}`, 
-      icon: DollarSign,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-    },
-  ];
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Memuat data kost...</span>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>;
+  if (!data) return <div>Gagal memuat data.</div>;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500 font-sans">
+      
+      {/* 1. JUDUL */}
       <div>
-        <h1 className="text-2xl mb-1 font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Ringkasan rumah kos Anda</p>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-800">Dashboard</h2>
+        <p className="text-slate-500 text-sm">Ringkasan performa dan tagihan kosan.</p>
       </div>
 
-      {/* Cards Statistik */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <h3 className="text-2xl font-bold">{stat.value}</h3>
-                  </div>
-                  <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                    <Icon className={`h-5 w-5 ${stat.color}`} />
-                  </div>
+      {/* 2. AREA REMINDER (Hanya Muncul kalau ada data) */}
+      {data.reminders.length > 0 && (
+        <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+                <div className="bg-orange-100 p-1.5 rounded-full">
+                    <BellRing className="h-4 w-4 text-orange-600 animate-pulse" />
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                <h3 className="font-semibold text-orange-800 text-sm">Perlu Ditagih (H-7 Jatuh Tempo)</h3>
+            </div>
+            
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {data.reminders.map((item) => (
+                    <div key={item.id} className="bg-white p-3 rounded-lg shadow-sm border border-orange-100/50 flex justify-between items-center">
+                        <div>
+                            <div className="font-medium text-slate-800 text-sm">{item.name}</div>
+                            <div className="text-xs text-slate-400">Kamar {item.room}</div>
+                        </div>
+                        <div className="text-right">
+                            <Badge className={`text-[10px] px-2 py-0.5 border-0 ${item.daysLeft < 0 ? "bg-rose-100 text-rose-600" : "bg-orange-100 text-orange-600"}`}>
+                                {item.statusText}
+                            </Badge>
+                            <div className="text-[10px] text-slate-400 mt-1">{item.dueDate}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tabel Pembayaran */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Pembayaran Terbaru</CardTitle>
+      {/* 3. KARTU STATISTIK (CLEAN DESIGN) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        
+        {/* TOTAL KAMAR */}
+        <Card className="border border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Kamar</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Home className="h-4 w-4 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{data.stats.totalRooms}</div>
+            <p className="text-xs text-slate-400 mt-1">Unit terdaftar</p>
+          </CardContent>
+        </Card>
+
+        {/* KAMAR TERISI */}
+        <Card className="border border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider">Kamar Terisi</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <Users className="h-4 w-4 text-emerald-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{data.stats.occupiedRooms}</div>
+            {/* Progress Bar Tipis */}
+            <div className="w-full bg-slate-50 h-1 rounded-full mt-2 overflow-hidden">
+                <div 
+                    className="bg-emerald-500 h-full rounded-full" 
+                    style={{ width: `${(data.stats.occupiedRooms / data.stats.totalRooms) * 100}%` }}
+                ></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* TOTAL PENYEWA */}
+        <Card className="border border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Penyewa</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <Users className="h-4 w-4 text-purple-600" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800">{data.stats.totalTenants}</div>
+            <p className="text-xs text-slate-400 mt-1">Orang aktif</p>
+          </CardContent>
+        </Card>
+
+        {/* PENDAPATAN */}
+        <Card className="border border-slate-100 shadow-sm bg-white hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-slate-400 uppercase tracking-wider">Pendapatan</CardTitle>
+            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-emerald-700" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-800">
+                Rp {(data.stats.monthlyRevenue / 1000).toLocaleString('id-ID')}k
+            </div>
+            <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center">
+                <TrendingUp className="h-3 w-3 mr-1" /> +12% Bulan ini
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 4. TABEL TRANSAKSI TERBARU & SIDEBAR KANAN */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        
+        {/* TABEL */}
+        <Card className="col-span-4 border border-slate-100 shadow-sm bg-white">
+          <CardHeader className="border-b border-slate-50 px-6 py-4">
+            <CardTitle className="text-base font-semibold text-slate-800">Pembayaran Terbaru</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Penyewa</TableHead>
-                  <TableHead>Kamar</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Jatuh Tempo</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentPayments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                      Belum ada data pembayaran
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  recentPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.tenantName}</TableCell>
-                      <TableCell>{payment.roomNumber}</TableCell>
-                      <TableCell>Rp {Number(payment.amount).toLocaleString('id-ID')}</TableCell>
-                      <TableCell>{payment.dueDate}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            payment.status === 'Paid' ? 'default' : 
-                            payment.status === 'Pending' ? 'secondary' : 'destructive'
-                          }
-                          className={
-                            payment.status === 'Paid' ? 'bg-green-100 text-green-700 hover:bg-green-100' : 
-                            payment.status === 'Pending' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100' : ''
-                          }
-                        >
-                          {payment.status === 'Paid' ? 'Lunas' : 
-                           payment.status === 'Pending' ? 'Pending' : 'Terlambat'}
-                        </Badge>
-                      </TableCell>
+                <TableHeader>
+                    <TableRow className="border-b border-slate-100 hover:bg-transparent">
+                        <TableHead className="text-xs font-semibold text-slate-500 uppercase w-[30%] pl-6">Penyewa</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-500 uppercase">Kamar</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-500 uppercase">Jumlah</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-500 uppercase text-right pr-6">Status</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
+                </TableHeader>
+                <TableBody>
+                    {data.recentPayments.length === 0 ? (
+                        <TableRow><TableCell colSpan={4} className="text-center text-slate-400 py-8">Belum ada transaksi</TableCell></TableRow>
+                    ) : (
+                        data.recentPayments.map((pay: any) => (
+                            <TableRow key={pay.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                <TableCell className="font-medium text-slate-700 pl-6 py-4">{pay.tenantName}</TableCell>
+                                <TableCell className="text-slate-500 text-xs">{pay.roomNumber}</TableCell>
+                                <TableCell className="text-slate-700 font-medium">Rp {Number(pay.amount).toLocaleString('id-ID')}</TableCell>
+                                <TableCell className="text-right pr-6">
+                                    <Badge variant="outline" className={`border-0 px-2 py-0.5 text-[10px] ${
+                                        pay.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                                    }`}>
+                                        {pay.status === 'Paid' ? 'Lunas' : pay.status}
+                                    </Badge>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
             </Table>
           </CardContent>
         </Card>
 
-        {/* Statistik Cepat */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Statistik Cepat</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-muted-foreground">Tingkat Hunian</span>
-                <span className="text-sm font-medium">{occupancyRate}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${occupancyRate}%` }}
-                ></div>
-              </div>
-            </div>
+        {/* STATISTIK CEPAT (SIDEBAR KANAN) */}
+        <Card className="col-span-3 border border-slate-100 shadow-sm bg-white h-fit">
+            <CardHeader className="border-b border-slate-50 px-6 py-4">
+                <CardTitle className="text-base font-semibold text-slate-800">Statistik Cepat</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-500">Tingkat Hunian</span>
+                            <span className="font-bold text-slate-800">{data.stats.totalRooms > 0 ? Math.round((data.stats.occupiedRooms / data.stats.totalRooms) * 100) : 0}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-slate-800 rounded-full transition-all duration-1000" 
+                                style={{ width: `${data.stats.totalRooms > 0 ? (data.stats.occupiedRooms / data.stats.totalRooms) * 100 : 0}%` }}
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Kamar Tersedia</span>
-                <span className="text-sm font-bold">{stats.totalRooms - stats.occupiedRooms}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm">Penyewa Aktif</span>
-                <span className="text-sm font-bold">{stats.totalTenants}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-700">Pendapatan</span>
+                    <div className="pt-4 border-t border-slate-50 space-y-3">
+                         <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Kamar Tersedia</span>
+                            <span className="font-bold text-slate-800">{data.stats.totalRooms - data.stats.occupiedRooms}</span>
+                         </div>
+                         <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">Penyewa Aktif</span>
+                            <span className="font-bold text-slate-800">{data.stats.totalTenants}</span>
+                         </div>
+                    </div>
                 </div>
-                <span className="text-sm text-green-700 font-bold">+12%</span>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
         </Card>
       </div>
     </div>

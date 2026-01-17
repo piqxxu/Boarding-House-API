@@ -1,305 +1,279 @@
-import { useState } from 'react';
-import { Button } from '@/app/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
-import { Badge } from '@/app/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/app/components/ui/dialog';
-import { Input } from '@/app/components/ui/input';
-import { Label } from '@/app/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Plus, Edit, Trash2, AlertCircle } from 'lucide-react';
-import { Tenant } from '@/app/types';
-import { mockTenants } from '@/app/data/mock-data';
-import { ConfirmDialog } from '@/app/components/confirm-dialog';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "./ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Loader2, Trash2, UserPlus, RefreshCcw, X, Check, CalendarClock } from "lucide-react";
+
+interface Tenant {
+  id: number;
+  start_date: string;
+  due_date: number;
+  user: { name: string; email: string; phone_number: string; };
+  room: { room_number: string; };
+}
+
+interface RoomOption {
+  id: number;
+  room_number: string;
+  status: string;
+}
 
 export function TenantManagementPage() {
-  const [tenants, setTenants] = useState<Tenant[]>(mockTenants);
-  const [isAddEditOpen, setIsAddEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [rooms, setRooms] = useState<RoomOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // STATE MODAL
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    roomNumber: '',
-    moveInDate: '',
-    status: 'Active' as Tenant['status'],
+    name: "",
+    email: "",
+    phone_number: "",
+    room_id: "",
+    start_date: new Date().toISOString().split('T')[0],
+    due_date: "5",
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleAdd = () => {
-    setEditingTenant(null);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      roomNumber: '',
-      moveInDate: '',
-      status: 'Active',
-    });
-    setErrors({});
-    setIsAddEditOpen(true);
+  const fetchTenants = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("http://127.0.0.1:8000/api/tenants", {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) setTenants(data.data);
+    } catch (err) { console.error("Gagal load tenant"); } 
+    finally { setIsLoading(false); }
   };
 
-  const handleEdit = (tenant: Tenant) => {
-    setEditingTenant(tenant);
-    setFormData({
-      name: tenant.name,
-      email: tenant.email,
-      phone: tenant.phone,
-      roomNumber: tenant.roomNumber,
-      moveInDate: tenant.moveInDate,
-      status: tenant.status,
-    });
-    setErrors({});
-    setIsAddEditOpen(true);
+  const fetchRooms = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("http://127.0.0.1:8000/api/rooms", {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const availableRooms = data.data.filter((r: any) => r.status === 'available');
+        setRooms(availableRooms);
+      }
+    } catch (err) { console.error("Gagal ambil kamar"); }
   };
 
-  const handleDelete = (tenant: Tenant) => {
-    setDeletingTenant(tenant);
-    setIsDeleteOpen(true);
+  useEffect(() => { fetchTenants(); }, []);
+
+  const openCheckinModal = () => {
+    fetchRooms();
+    setIsModalOpen(true);
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nama wajib diisi';
-    }
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email wajib diisi';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Format email tidak valid';
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Telepon wajib diisi';
-    }
-    if (!formData.roomNumber.trim()) {
-      newErrors.roomNumber = 'Nomor kamar wajib diisi';
-    }
-    if (!formData.moveInDate) {
-      newErrors.moveInDate = 'Tanggal masuk wajib diisi';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    if (!validateForm()) return;
-
-    const tenantData: Tenant = {
-      id: editingTenant?.id || Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      roomNumber: formData.roomNumber,
-      moveInDate: formData.moveInDate,
-      status: formData.status,
-    };
-
-    if (editingTenant) {
-      setTenants(tenants.map((t) => (t.id === editingTenant.id ? tenantData : t)));
-    } else {
-      setTenants([...tenants, tenantData]);
-    }
-
-    setIsAddEditOpen(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("auth_token");
+      const res = await fetch("http://127.0.0.1:8000/api/tenants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(formData),
+      });
+      
+      if (res.ok) {
+        setIsModalOpen(false);
+        setFormData({ name: "", email: "", phone_number: "", room_id: "", start_date: new Date().toISOString().split('T')[0], due_date: "5" });
+        fetchTenants();
+        alert("Check-in Berhasil!");
+      } else {
+        const result = await res.json();
+        alert("Gagal: " + result.message);
+      }
+    } catch (err) { alert("Error koneksi"); }
+    finally { setIsSubmitting(false); }
   };
 
-  const confirmDelete = () => {
-    if (deletingTenant) {
-      setTenants(tenants.filter((t) => t.id !== deletingTenant.id));
-      setIsDeleteOpen(false);
-      setDeletingTenant(null);
-    }
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Checkout penyewa ini?")) return;
+    try {
+        const token = localStorage.getItem("auth_token");
+        const res = await fetch(`http://127.0.0.1:8000/api/tenants/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` },
+        });
+        if (res.ok) fetchTenants();
+    } catch (err) { alert("Gagal delete"); }
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl mb-1">Manajemen Penyewa</h1>
-          <p className="text-sm text-muted-foreground">Kelola penyewa rumah kos</p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-800">Manajemen Penyewa</h2>
+          <p className="text-slate-500 text-sm">Daftar penghuni aktif di kosan.</p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Penyewa
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={fetchTenants} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50">
+                <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
+            <Button onClick={openCheckinModal} className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm">
+                <UserPlus className="mr-2 h-4 w-4" /> Check-in Baru
+            </Button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Telepon</TableHead>
-              <TableHead>Kamar</TableHead>
-              <TableHead>Tanggal Masuk</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tenants.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <AlertCircle className="h-8 w-8" />
-                    <p>Tidak ada penyewa ditemukan</p>
-                    <Button variant="outline" onClick={handleAdd} className="mt-2">
-                      Tambah penyewa pertama Anda
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              tenants.map((tenant) => (
-                <TableRow key={tenant.id}>
-                  <TableCell>{tenant.name}</TableCell>
-                  <TableCell>{tenant.email}</TableCell>
-                  <TableCell>{tenant.phone}</TableCell>
-                  <TableCell>{tenant.roomNumber}</TableCell>
-                  <TableCell>{new Date(tenant.moveInDate).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        tenant.status === 'Active'
-                          ? 'bg-green-100 text-green-700 hover:bg-green-100'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
-                      }
-                    >
-                      {tenant.status === 'Active' ? 'Aktif' : 'Tidak Aktif'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(tenant)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(tenant)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+      <Card className="border border-slate-100 shadow-sm bg-white">
+        <CardHeader className="border-b border-slate-50 bg-slate-50/30 px-6 py-4">
+            <CardTitle className="text-base font-semibold text-slate-800">Daftar Penghuni</CardTitle>
+            <CardDescription className="text-slate-400 text-xs">{tenants.length} orang sedang menyewa.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-500" /></div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-white">
+                <TableRow className="border-b border-slate-100 hover:bg-transparent">
+                  <TableHead className="font-semibold text-slate-500 text-xs uppercase pl-6">Nama Penyewa</TableHead>
+                  <TableHead className="font-semibold text-slate-500 text-xs uppercase">Kamar</TableHead>
+                  <TableHead className="font-semibold text-slate-500 text-xs uppercase">Mulai Ngekos</TableHead>
+                  <TableHead className="font-semibold text-slate-500 text-xs uppercase">Tagihan</TableHead>
+                  <TableHead className="font-semibold text-slate-500 text-xs uppercase">Status</TableHead>
+                  <TableHead className="text-right font-semibold text-slate-500 text-xs uppercase pr-6">Aksi</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {tenants.map((tenant) => {
+                  const today = new Date();
+                  const currentDay = today.getDate();
+                  const nextBillMonth = currentDay <= tenant.due_date ? today.getMonth() : today.getMonth() + 1;
+                  const nextBillDate = new Date(today.getFullYear(), nextBillMonth, tenant.due_date);
 
-      <Dialog open={isAddEditOpen} onOpenChange={setIsAddEditOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingTenant ? 'Edit Penyewa' : 'Tambah Penyewa Baru'}</DialogTitle>
-            <DialogDescription>
-              {editingTenant ? 'Perbarui informasi penyewa' : 'Masukkan detail untuk penyewa baru'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nama Lengkap</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="contoh: John Smith"
-                className={errors.name ? 'border-destructive' : ''}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="contoh: john@email.com"
-                className={errors.email ? 'border-destructive' : ''}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telepon</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="contoh: 555-0101"
-                className={errors.phone ? 'border-destructive' : ''}
-              />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="roomNumber">Nomor Kamar</Label>
-              <Input
-                id="roomNumber"
-                value={formData.roomNumber}
-                onChange={(e) => setFormData({ ...formData, roomNumber: e.target.value })}
-                placeholder="contoh: 101"
-                className={errors.roomNumber ? 'border-destructive' : ''}
-              />
-              {errors.roomNumber && (
-                <p className="text-sm text-destructive">{errors.roomNumber}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="moveInDate">Tanggal Masuk</Label>
-              <Input
-                id="moveInDate"
-                type="date"
-                value={formData.moveInDate}
-                onChange={(e) => setFormData({ ...formData, moveInDate: e.target.value })}
-                className={errors.moveInDate ? 'border-destructive' : ''}
-              />
-              {errors.moveInDate && (
-                <p className="text-sm text-destructive">{errors.moveInDate}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value as Tenant['status'] })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Aktif</SelectItem>
-                  <SelectItem value="Inactive">Tidak Aktif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddEditOpen(false)}>
-              Batal
-            </Button>
-            <Button onClick={handleSave}>
-              {editingTenant ? 'Perbarui' : 'Tambah'} Penyewa
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  return (
+                    <TableRow key={tenant.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                      <TableCell className="pl-6 py-4">
+                          <div className="font-medium text-slate-700">{tenant.user?.name}</div>
+                          <div className="text-xs text-slate-400">{tenant.user?.phone_number}</div>
+                      </TableCell>
+                      <TableCell className="font-bold text-slate-700 text-base">{tenant.room?.room_number}</TableCell>
+                      <TableCell className="text-slate-600 text-sm">{tenant.start_date}</TableCell>
+                      
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                            <CalendarClock className="h-4 w-4 text-slate-400" />
+                            <div>
+                                <div className="font-medium text-slate-700 text-sm">Tgl {tenant.due_date}</div>
+                                <div className="text-[10px] text-slate-400">
+                                    Next: {nextBillDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                </div>
+                            </div>
+                        </div>
+                      </TableCell>
 
-      <ConfirmDialog
-        open={isDeleteOpen}
-        onOpenChange={setIsDeleteOpen}
-        onConfirm={confirmDelete}
-        title="Hapus Penyewa"
-        description={`Apakah Anda yakin ingin menghapus ${deletingTenant?.name}? Tindakan ini tidak dapat dibatalkan.`}
-      />
+                      <TableCell>
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-0 px-2.5 py-0.5 text-xs font-medium">
+                            Aktif
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right pr-6">
+                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 h-8" onClick={() => handleDelete(tenant.id)}>
+                              <Trash2 className="h-4 w-4 mr-2" /> Checkout
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* MODAL CHECK-IN */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-[2px] p-4 animate-in fade-in zoom-in duration-200">
+          <Card className="w-full max-w-lg shadow-xl border-0 ring-1 ring-slate-200 bg-white">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4 bg-white rounded-t-lg">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-800">Check-in Penghuni</CardTitle>
+                <CardDescription className="text-slate-400 text-xs">Masukkan data diri dan pilih kamar.</CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-full" onClick={() => setIsModalOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </CardHeader>
+            
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-5 pt-6 bg-white">
+                
+                {/* SECTION DATA DIRI */}
+                <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100 space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Data Penghuni</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-600">Nama Lengkap</label>
+                            <input name="name" required className="flex h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 outline-none transition-all" 
+                                value={formData.name} onChange={handleInputChange} placeholder="Nama..." />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-600">No. HP</label>
+                            <input name="phone_number" required className="flex h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 outline-none transition-all" 
+                                value={formData.phone_number} onChange={handleInputChange} placeholder="08..." />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-600">Email (Untuk Login)</label>
+                        <input name="email" type="email" required className="flex h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 outline-none transition-all" 
+                            value={formData.email} onChange={handleInputChange} placeholder="email@contoh.com" />
+                    </div>
+                </div>
+
+                {/* SECTION SEWA */}
+                <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500">Detail Sewa</h3>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-600">Pilih Kamar (Available)</label>
+                        <select name="room_id" required className="flex h-10 w-full rounded-md border border-slate-200 px-3 text-sm bg-white focus:border-blue-500 outline-none transition-all"
+                            value={formData.room_id} onChange={handleInputChange}>
+                            <option value="">-- Pilih Kamar Kosong --</option>
+                            {rooms.length === 0 ? <option disabled>Semua kamar penuh!</option> : rooms.map((room) => (
+                                <option key={room.id} value={room.id}>Kamar {room.room_number} (Available)</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-600">Tanggal Masuk</label>
+                            <input type="date" name="start_date" required className="flex h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 outline-none transition-all" 
+                                value={formData.start_date} onChange={handleInputChange} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-slate-600">Tgl Jatuh Tempo</label>
+                            <input type="number" min="1" max="31" name="due_date" required className="flex h-9 w-full rounded-md border border-slate-200 px-3 text-sm focus:border-blue-500 outline-none transition-all" 
+                                value={formData.due_date} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                </div>
+
+              </CardContent>
+
+              <CardFooter className="flex justify-end gap-3 border-t border-slate-100 pt-4 pb-4 px-6 bg-slate-50/50 rounded-b-lg">
+                <Button type="button" variant="ghost" className="text-slate-500 hover:text-slate-700" onClick={() => setIsModalOpen(false)}>Batal</Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white hover:bg-blue-700 shadow-sm px-6">
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                    Proses Check-in
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
