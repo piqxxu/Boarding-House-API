@@ -11,16 +11,16 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // 1. Validasi input
+        // Validasi input
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        // 2. Cari user berdasarkan email
+        // Cari user berdasarkan email
         $user = User::where('email', $request->email)->first();
 
-        // 3. Cek apakah user ada & password benar
+        // Cek apakah user ada & password benar
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'error',
@@ -28,10 +28,10 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // 4. Kalau bener, bikin Token 
+        // Kalau bener, bikin Token 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // 5. Kirim Token ke frontend
+        // Kirim Token ke frontend
         return response()->json([
             'status' => 'success',
             'message' => 'Login berhasil',

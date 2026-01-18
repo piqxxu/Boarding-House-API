@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Home, Users, DollarSign, TrendingUp, Loader2, BellRing, CalendarClock } from 'lucide-react';
 
-// Tipe Data
 interface Reminder {
   id: number;
   name: string;
@@ -33,10 +32,35 @@ export function DashboardPage() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('auth_token');
+        
+        // Cek kalau token gak ada, langsung stop
+        if (!token) {
+             window.location.reload(); // Biar balik ke Login
+             return;
+        }
+
         const res = await fetch('http://127.0.0.1:8000/api/dashboard-stats', {
-            headers: { "Authorization": `Bearer ${token}` }
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/json" // <--- INI OBATNYA! Wajib ada.
+            }
         });
+
+        // Kalau Token Basi (401), Logout Paksa
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.reload();
+            return;
+        }
+
         const result = await res.json();
+        
+        // Kalau Backend kirim pesan error (bukan data)
+        if (!res.ok) {
+            console.error("Server Error:", result);
+            return;
+        }
+
         setData(result);
       } catch (error) {
         console.error("Gagal load dashboard", error);
@@ -48,7 +72,7 @@ export function DashboardPage() {
   }, []);
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>;
-  if (!data) return <div>Gagal memuat data.</div>;
+  if (!data) return <div className="p-8 text-center text-slate-500">Gagal memuat data. Coba refresh atau login ulang.</div>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 font-sans">
@@ -59,8 +83,8 @@ export function DashboardPage() {
         <p className="text-slate-500 text-sm">Ringkasan performa dan tagihan kosan.</p>
       </div>
 
-      {/* 2. AREA REMINDER (Hanya Muncul kalau ada data) */}
-      {data.reminders.length > 0 && (
+      {/* 2. AREA REMINDER */}
+      {data.reminders && data.reminders.length > 0 && (
         <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
                 <div className="bg-orange-100 p-1.5 rounded-full">
@@ -77,7 +101,7 @@ export function DashboardPage() {
                             <div className="text-xs text-slate-400">Kamar {item.room}</div>
                         </div>
                         <div className="text-right">
-                            <Badge className={`text-[10px] px-2 py-0.5 border-0 ${item.daysLeft < 0 ? "bg-rose-100 text-rose-600" : "bg-orange-100 text-orange-600"}`}>
+                            <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border-0 ${item.daysLeft < 0 ? "bg-rose-100 text-rose-600" : "bg-orange-100 text-orange-600"}`}>
                                 {item.statusText}
                             </Badge>
                             <div className="text-[10px] text-slate-400 mt-1">{item.dueDate}</div>
@@ -88,7 +112,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* 3. KARTU STATISTIK (CLEAN DESIGN) */}
+      {/* 3. KARTU STATISTIK */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         
         {/* TOTAL KAMAR */}
@@ -115,11 +139,10 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-800">{data.stats.occupiedRooms}</div>
-            {/* Progress Bar Tipis */}
             <div className="w-full bg-slate-50 h-1 rounded-full mt-2 overflow-hidden">
                 <div 
                     className="bg-emerald-500 h-full rounded-full" 
-                    style={{ width: `${(data.stats.occupiedRooms / data.stats.totalRooms) * 100}%` }}
+                    style={{ width: `${data.stats.totalRooms > 0 ? (data.stats.occupiedRooms / data.stats.totalRooms) * 100 : 0}%` }}
                 ></div>
             </div>
           </CardContent>
@@ -158,7 +181,7 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* 4. TABEL TRANSAKSI TERBARU & SIDEBAR KANAN */}
+      {/* 4. TABEL TRANSAKSI TERBARU */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         
         {/* TABEL */}
@@ -200,7 +223,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* STATISTIK CEPAT (SIDEBAR KANAN) */}
+        {/* STATISTIK CEPAT */}
         <Card className="col-span-3 border border-slate-100 shadow-sm bg-white h-fit">
             <CardHeader className="border-b border-slate-50 px-6 py-4">
                 <CardTitle className="text-base font-semibold text-slate-800">Statistik Cepat</CardTitle>

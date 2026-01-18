@@ -44,7 +44,7 @@ export function RoomManagementPage() {
     return formattedValue.replace(/\./g, ""); 
   };
 
-  // --- 1. GET DATA ---
+  // --- GET DATA ---
   const fetchRooms = async () => {
     setIsLoading(true);
     try {
@@ -148,7 +148,7 @@ export function RoomManagementPage() {
         </div>
       </div>
 
-      {/* CARD UTAMA (TABLE) */}
+      {/* (TABLE) */}
       <Card className="border border-slate-100 shadow-sm bg-white overflow-hidden">
         <CardHeader className="border-b border-slate-50 bg-slate-50/30 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -156,7 +156,7 @@ export function RoomManagementPage() {
                     <CardTitle className="text-base font-semibold text-slate-800">Daftar Unit</CardTitle>
                     <CardDescription className="text-slate-400 text-xs">Total {rooms.length} kamar terdaftar</CardDescription>
                 </div>
-                {/* Search Dummy (Visual aja) */}
+                {/* Search Dummy (soon) */}
                 <div className="relative w-48 hidden sm:block">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-300" />
                     <input 

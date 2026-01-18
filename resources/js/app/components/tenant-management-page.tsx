@@ -23,8 +23,6 @@ export function TenantManagementPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rooms, setRooms] = useState<RoomOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // STATE MODAL
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({

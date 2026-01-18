@@ -64,7 +64,6 @@ class PaymentController extends Controller
             'amount' => $validated['amount'],
             'status' => $validated['status'],
             'due_date' => $validated['due_date'],
-            // Kalau status diganti PAID, otomatis isi tanggal bayar hari ini (kalau tadinya kosong)
             'paid_at' => ($validated['status'] == 'paid' && !$payment->paid_at) ? now() : $payment->paid_at,
         ]);
 

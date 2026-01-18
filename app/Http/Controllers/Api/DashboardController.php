@@ -7,82 +7,97 @@ use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Models\Tenant;
 use App\Models\Payment;
-use Carbon\Carbon; // Library buat manipulasi Tanggal
+use Carbon\Carbon; 
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // 1. STATISTIK DASAR
-        $totalRooms = Room::count();
-        $occupiedRooms = Room::where('status', 'occupied')->count();
-        $totalTenants = Tenant::where('status', 'active')->count();
-        
-        $monthlyRevenue = Payment::whereMonth('due_date', now()->month)
-            ->whereYear('due_date', now()->year)
-            ->where('status', 'paid') // Hanya hitung yang lunas
-            ->sum('amount');
-
-        // 2. LOGIKA REMINDER H-7 (JATUH TEMPO)
-        // Ambil semua penyewa aktif
-        $activeTenants = Tenant::with(['user', 'room'])->where('status', 'active')->get();
-        $reminders = [];
-
-        foreach ($activeTenants as $tenant) {
-            // Tentukan tanggal jatuh tempo bulan ini berdasarkan 'due_date' (tgl 1-31)
-            $dueDateThisMonth = Carbon::createFromDate(null, null, $tenant->due_date);
+        try {
+            // 1. STATISTIK DASAR
+            $totalRooms = Room::count();
+            $occupiedRooms = Room::where('status', 'occupied')->count();
+            $totalTenants = Tenant::where('status', 'active')->count();
             
-            // Kalau tanggal itu sudah lewat (misal skrg tgl 20, jatuh tempo tgl 5),
-            // Berarti kita cek target jatuh tempo BULAN DEPAN.
-            if ($dueDateThisMonth->isPast()) {
-                $nextDueDate = $dueDateThisMonth->copy()->addMonth();
-            } else {
-                $nextDueDate = $dueDateThisMonth;
+            $monthlyRevenue = Payment::whereMonth('due_date', now()->month)
+                ->whereYear('due_date', now()->year)
+                ->where('status', 'paid')
+                ->sum('amount');
+
+            // 2. LOGIKA REMINDER H-7
+            // Kita ambil data, tapi kalau user/room hilang, kita handle di bawah
+            $activeTenants = Tenant::with(['user', 'room'])->where('status', 'active')->get();
+            $reminders = [];
+
+            foreach ($activeTenants as $tenant) {
+                // SKIP jika tanggal tagihan kosong/invalid
+                if (empty($tenant->due_date)) continue;
+
+                try {
+                    // Pakai blok try-catch per item biar 1 error gak bikin semua crash
+                    $dueDateThisMonth = Carbon::createFromDate(null, null, (int)$tenant->due_date);
+                    
+                    if ($dueDateThisMonth->isPast()) {
+                        $nextDueDate = $dueDateThisMonth->copy()->addMonth();
+                    } else {
+                        $nextDueDate = $dueDateThisMonth;
+                    }
+
+                    $daysLeft = now()->diffInDays($nextDueDate, false);
+
+                    if ($daysLeft <= 7) {
+                        $reminders[] = [
+                            'id' => $tenant->id,
+                            // --- BAGIAN INI YANG SERING BIKIN CRASH ---
+                            // Kita pakai optional() atau null safe operator (?->)
+                            'name' => $tenant->user ? $tenant->user->name : 'Data User Terhapus',
+                            'room' => $tenant->room ? $tenant->room->room_number : '?',
+                            // -------------------------------------------
+                            'dueDate' => $nextDueDate->format('Y-m-d'),
+                            'daysLeft' => intval($daysLeft),
+                            'statusText' => $daysLeft < 0 ? 'Telat ' . abs(intval($daysLeft)) . ' Hari!' : 'H-' . intval($daysLeft)
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    continue; // Kalau hitungan tanggal error, skip aja tenant ini
+                }
             }
 
-            // Hitung selisih hari dari SEKARANG sampai JATUH TEMPO
-            $daysLeft = now()->diffInDays($nextDueDate, false); // false = biar bisa minus (kalau telat)
+            // 3. PEMBAYARAN TERBARU
+            $recentPayments = Payment::with(['tenant.user', 'tenant.room'])
+                ->latest()
+                ->take(5)
+                ->get()
+                ->map(function ($payment) {
+                    return [
+                        'id' => $payment->id,
+                        // Handle kalau tenant/user/room dihapus
+                        'tenantName' => $payment->tenant && $payment->tenant->user ? $payment->tenant->user->name : 'Mantan Penghuni',
+                        'roomNumber' => $payment->tenant && $payment->tenant->room ? $payment->tenant->room->room_number : '?',
+                        'amount' => $payment->amount,
+                        'due_date' => $payment->due_date,
+                        'status' => ucfirst($payment->status)
+                    ];
+                });
 
-            // KONDISI: Kalau sisa hari antara 0 sampai 7 (H-7) ATAU minus (Telat)
-            if ($daysLeft <= 7) {
-                $status = $daysLeft < 0 ? 'Telat ' . abs(intval($daysLeft)) . ' Hari!' : 'H-' . intval($daysLeft);
-                
-                $reminders[] = [
-                    'id' => $tenant->id,
-                    'name' => $tenant->user->name,
-                    'room' => $tenant->room->room_number,
-                    'dueDate' => $nextDueDate->format('Y-m-d'), // Format: 2026-02-05
-                    'daysLeft' => intval($daysLeft), // Buat logic warna di frontend
-                    'statusText' => $status
-                ];
-            }
+            return response()->json([
+                'stats' => [
+                    'totalRooms' => $totalRooms,
+                    'occupiedRooms' => $occupiedRooms,
+                    'totalTenants' => $totalTenants,
+                    'monthlyRevenue' => (int) $monthlyRevenue,
+                ],
+                'reminders' => $reminders,
+                'recentPayments' => $recentPayments
+            ], 200);
+
+        } catch (\Exception $e) {
+            // Tangkap error global dan kirim pesan jelas (bukan HTML)
+            return response()->json([
+                'message' => 'Backend Error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
         }
-
-        // 3. PEMBAYARAN TERBARU
-        $recentPayments = Payment::with(['tenant.user', 'tenant.room'])
-            ->latest()
-            ->take(5)
-            ->get()
-            ->map(function ($payment) {
-                return [
-                    'id' => $payment->id,
-                    'tenantName' => $payment->tenant ? $payment->tenant->user->name : 'Mantan Penghuni',
-                    'roomNumber' => $payment->tenant ? $payment->tenant->room->room_number : '?',
-                    'amount' => $payment->amount,
-                    'dueDate' => $payment->due_date,
-                    'status' => ucfirst($payment->status)
-                ];
-            });
-
-        return response()->json([
-            'stats' => [
-                'totalRooms' => $totalRooms,
-                'occupiedRooms' => $occupiedRooms,
-                'totalTenants' => $totalTenants,
-                'monthlyRevenue' => (int) $monthlyRevenue,
-            ],
-            'reminders' => $reminders, // <-- DATA BARU DIKIRIM KE SINI
-            'recentPayments' => $recentPayments
-        ]);
     }
 }

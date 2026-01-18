@@ -20,7 +20,7 @@ export function Sidebar({ currentPage, onNavigate, width, onStartResize }: Sideb
         className="fixed left-0 top-0 z-40 h-screen bg-white shadow-sm font-sans flex flex-col border-r border-slate-100 group/sidebar"
         style={{ width: `${width}px` }} 
     >
-      {/* 1. LOGO AREA */}
+      {/* LOGO AREA */}
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-50 px-6 overflow-hidden whitespace-nowrap">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md shadow-blue-100">
            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -33,7 +33,7 @@ export function Sidebar({ currentPage, onNavigate, width, onStartResize }: Sideb
         </span>
       </div>
 
-      {/* 2. MENU ITEMS */}
+      {/* MENU ITEMS */}
       <div className="flex-1 flex flex-col gap-1.5 p-4 mt-2 overflow-y-auto overflow-x-hidden">
         {width > 180 && (
             <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap truncate">
