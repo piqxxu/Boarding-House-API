@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Loader2, Plus, RefreshCcw, Trash2, DollarSign, X, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, RefreshCcw, Trash2, DollarSign, X, Pencil, AlertCircle, CheckCircle2, Printer } from "lucide-react";
 
 interface Payment {
   id: number;
@@ -11,7 +11,11 @@ interface Payment {
   status: string;
   due_date: string;
   paid_at: string | null;
-  tenant: { id: number; user: { name: string }; room: { room_number: string; price: number }; } | null;
+  tenant: {
+    id: number;
+    user: { name: string };
+    room: { room_number: string; price: number };
+  } | null;
 }
 
 interface TenantOption {
@@ -46,12 +50,13 @@ export function PaymentManagementPage() {
     return formattedValue.replace(/\./g, ""); 
   };
 
+  // --- 1. GET DATA (Pakai sessionStorage) ---
   const fetchPayments = async () => {
     setIsLoading(true);
     try {
-      const token = sessionStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token"); // <--- SUDAH DIGANTI KE SESSION
       const res = await fetch("http://127.0.0.1:8000/api/payments", {
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" },
       });
       const data = await res.json();
       if (res.ok) setPayments(data.data);
@@ -61,9 +66,9 @@ export function PaymentManagementPage() {
 
   const fetchTenants = async () => {
     try {
-      const token = sessionStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token"); // <--- SUDAH DIGANTI KE SESSION
       const res = await fetch("http://127.0.0.1:8000/api/tenants", {
-        headers: { "Authorization": `Bearer ${token}` },
+        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" },
       });
       const data = await res.json();
       if (res.ok) setTenants(data.data);
@@ -72,6 +77,95 @@ export function PaymentManagementPage() {
 
   useEffect(() => { fetchPayments(); }, []);
 
+  // --- 2. FITUR CETAK KUITANSI (NEW!) ---
+  const handlePrint = (payment: Payment) => {
+    // Buka jendela baru
+    const printWindow = window.open('', '', 'height=600,width=800');
+    
+    if (printWindow) {
+        // Desain HTML Kuitansi
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Kuitansi Pembayaran - BoardingHub</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; padding: 40px; }
+                        .container { border: 2px solid #000; padding: 20px; max-width: 700px; margin: 0 auto; }
+                        .header { text-align: center; border-bottom: 2px double #000; padding-bottom: 10px; margin-bottom: 20px; }
+                        .title { font-size: 24px; font-weight: bold; text-transform: uppercase; }
+                        .subtitle { font-size: 14px; }
+                        .row { display: flex; margin-bottom: 10px; }
+                        .label { width: 180px; font-weight: bold; }
+                        .value { flex: 1; border-bottom: 1px dotted #000; }
+                        .amount-box { 
+                            margin-top: 20px; border: 2px solid #000; padding: 10px; 
+                            font-size: 20px; font-weight: bold; display: inline-block; background: #eee;
+                        }
+                        .footer { margin-top: 40px; text-align: right; }
+                        .sign-area { height: 60px; }
+                        .status-stamp {
+                            position: absolute; top: 150px; right: 100px; 
+                            border: 3px solid green; color: green; 
+                            padding: 10px; font-size: 24px; font-weight: bold; 
+                            transform: rotate(-15deg); opacity: 0.8;
+                        }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <div class="title">KUITANSI PEMBAYARAN</div>
+                            <div class="subtitle">BoardingHub Management System</div>
+                        </div>
+
+                        ${payment.status === 'paid' ? '<div class="status-stamp">LUNAS</div>' : ''}
+
+                        <div class="row">
+                            <div class="label">No. Transaksi</div>
+                            <div class="value">INV/${new Date().getFullYear()}/${payment.id.toString().padStart(4, '0')}</div>
+                        </div>
+                        <div class="row">
+                            <div class="label">Telah terima dari</div>
+                            <div class="value">${payment.tenant?.user?.name || '-'}</div>
+                        </div>
+                        <div class="row">
+                            <div class="label">Untuk Pembayaran</div>
+                            <div class="value">Sewa Kamar No. ${payment.tenant?.room?.room_number} (Tgl: ${payment.due_date})</div>
+                        </div>
+                        <div class="row">
+                            <div class="label">Terbilang</div>
+                            <div class="value" style="font-style: italic;">
+                                ** Total Nominal Tertera di Bawah **
+                            </div>
+                        </div>
+
+                        <div class="amount-box">
+                            Rp ${Number(payment.amount).toLocaleString('id-ID')}
+                        </div>
+
+                        <div class="footer">
+                            <div>Bandung, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                            <div class="sign-area"></div>
+                            <div>( Admin BoardingHub )</div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        // Delay dikit biar CSS ke-load sebelum dialog print muncul
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    }
+  };
+
+  // --- LOGIC LAINNYA ---
   const handleAddClick = () => {
     fetchTenants();
     setEditingId(null);
@@ -115,7 +209,7 @@ export function PaymentManagementPage() {
 
       const res = await fetch(url, {
         method: method,
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "Accept": "application/json" },
         body: JSON.stringify({ ...formData, amount: cleanAmount, status: autoStatus }),
       });
 
@@ -125,7 +219,7 @@ export function PaymentManagementPage() {
         alert(editingId ? "Data Updated!" : "Transaksi Berhasil!");
       } else {
         alert("Gagal menyimpan data.");
-      }
+      } 
     } catch (err) { alert("Error koneksi"); }
     finally { setIsSubmitting(false); }
   };
@@ -133,7 +227,7 @@ export function PaymentManagementPage() {
   const handleDelete = async (id: number) => {
     if(!confirm("Hapus data pembayaran ini?")) return;
     const token = sessionStorage.getItem("auth_token");
-    await fetch(`http://127.0.0.1:8000/api/payments/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}` } });
+    await fetch(`http://127.0.0.1:8000/api/payments/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" } });
     fetchPayments();
   };
 
@@ -152,7 +246,7 @@ export function PaymentManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-800">Keuangan</h2>
-          <p className="text-slate-500 text-sm">Kelola pembayaran dan cicilan sewa.</p>
+          <p className="text-slate-500 text-sm">Kelola pembayaran dan cetak kuitansi.</p>
         </div>
         <div className="flex gap-2">
             <Button onClick={fetchPayments} variant="outline" size="sm" className="border-slate-200 text-slate-600 hover:bg-slate-50">
@@ -211,6 +305,15 @@ export function PaymentManagementPage() {
                         <TableCell className="text-slate-500 text-xs">{payment.due_date}</TableCell>
                         <TableCell className="text-right pr-6">
                             <div className="flex justify-end gap-1">
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100" 
+                                    onClick={() => handlePrint(payment)}
+                                    title="Cetak Kuitansi"
+                                >
+                                    <Printer className="h-4 w-4" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleEditClick(payment)}>
                                     <Pencil className="h-4 w-4" />
                                 </Button>
@@ -227,8 +330,6 @@ export function PaymentManagementPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* MODAL INPUT */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-[2px] p-4 animate-in fade-in zoom-in duration-200">
           <Card className="w-full max-w-md shadow-xl border-0 ring-1 ring-slate-200 bg-white">

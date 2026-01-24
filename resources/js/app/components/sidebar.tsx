@@ -1,4 +1,4 @@
-import { LayoutDashboard, BedDouble, Users, Wallet } from "lucide-react";
+import { LayoutDashboard, BedDouble, Users, Wallet, ScrollText } from "lucide-react";
 
 interface SidebarProps {
   currentPage: string;
@@ -8,11 +8,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onNavigate, width, onStartResize }: SidebarProps) {
-  const menuItems = [
+const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "rooms", label: "Manajemen Kamar", icon: BedDouble },
     { id: "tenants", label: "Manajemen Penyewa", icon: Users },
     { id: "payments", label: "Manajemen Pembayaran", icon: Wallet },
+    { id: "audit", label: "Audit Logs", icon: ScrollText}, 
   ];
 
   return (

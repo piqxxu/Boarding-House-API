@@ -6,21 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\AuditLog;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // Validasi input
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
-
-        // Cari user berdasarkan email
         $user = User::where('email', $request->email)->first();
-
-        // Cek apakah user ada & password benar
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'error',
@@ -28,10 +24,15 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Kalau bener, bikin Token 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Kirim Token ke frontend
+        AuditLog::create([
+            'user_name' => $user->name,
+            'action'    => 'LOGIN',
+            'target'    => 'System',
+            'description' => "User melakukan login ke sistem"
+        ]);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Login berhasil',
@@ -44,7 +45,13 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // Hapus token yang sedang dipakai
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'LOGOUT',
+            'target'    => 'System',
+            'description' => "User keluar dari sistem (Logout)"
+        ]);
+
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logout berhasil']);
     }

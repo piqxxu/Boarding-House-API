@@ -6,6 +6,7 @@ import { DashboardPage } from './components/dashboard-page';
 import { RoomManagementPage } from './components/room-management-page';
 import { TenantManagementPage } from './components/tenant-management-page';
 import { PaymentManagementPage } from './components/payment-management-page';
+import { AuditLogPage } from './components/audit-log-page';
 
 export default function App() {
   const [token, setToken] = useState<string | null>(sessionStorage.getItem('auth_token'));
@@ -42,15 +43,11 @@ export default function App() {
 
 
   const handleLoginSuccess = (newToken: string) => {
-    // --- UBAH 2: Simpan ke sessionStorage ---
     sessionStorage.setItem('auth_token', newToken);
     setToken(newToken);
-    // Kita gak perlu reload window kalau state udah update, tapi kalau mau reload gapapa
-    // window.location.reload(); <--- Hapus aja biar smooth, atau biarin kalau mau refresh
   };
 
   const handleLogout = () => {
-    // --- UBAH 3: Hapus dari sessionStorage ---
     sessionStorage.removeItem('auth_token');
     setToken(null);
     setCurrentPage('dashboard');
@@ -60,12 +57,13 @@ export default function App() {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const renderPage = () => {
+const renderPage = () => {
     switch (currentPage) {
       case 'dashboard': return <DashboardPage />;
       case 'rooms': return <RoomManagementPage />;
       case 'tenants': return <TenantManagementPage />;
       case 'payments': return <PaymentManagementPage />;
+      case 'audit': return <AuditLogPage/>; 
       default: return <DashboardPage />;
     }
   };

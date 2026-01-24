@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use App\Models\AuditLog;
 
 class PaymentController extends Controller
 {
@@ -14,7 +15,7 @@ class PaymentController extends Controller
     {
         // Ambil data pembayaran + info penyewanya + info kamarnya
         $payments = Payment::with(['tenant.user', 'tenant.room'])
-            ->latest() // Urutkan dari yang paling baru
+            ->latest() 
             ->get();
 
         return response()->json(['status' => 'success', 'data' => $payments]);
@@ -36,7 +37,20 @@ class PaymentController extends Controller
             'amount' => $validated['amount'],
             'status' => $validated['status'],
             'due_date' => $validated['due_date'],
-            'paid_at' => $validated['status'] == 'paid' ? now() : null, // Kalau paid, isi tanggal hari ini
+            'paid_at' => $validated['status'] == 'paid' ? now() : null, 
+        ]);
+
+        $tenantName = "Unknown";
+        $tenant = Tenant::with('user')->find($validated['tenant_id']);
+        if ($tenant && $tenant->user) {
+            $tenantName = $tenant->user->name;
+        }
+
+        AuditLog::create([
+            'user_name' => $request->user()->name, 
+            'action'    => 'CREATE',
+            'target'    => "Payment #{$payment->id}",
+            'description' => "Menerima uang Rp " . number_format($payment->amount) . " dari " . $tenantName 
         ]);
 
         return response()->json([
@@ -67,6 +81,13 @@ class PaymentController extends Controller
             'paid_at' => ($validated['status'] == 'paid' && !$payment->paid_at) ? now() : $payment->paid_at,
         ]);
 
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'UPDATE',
+            'target'    => "Payment #{$id}",
+            'description' => "Mengubah data pembayaran (Nominal: " . number_format($payment->amount) . ", Status: {$payment->status})"
+        ]);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Data pembayaran berhasil diupdate!',
@@ -75,11 +96,18 @@ class PaymentController extends Controller
     }
 
     // HAPUS DATA 
-    public function destroy($id)
+    public function destroy(Request $request, $id) 
     {
         $payment = Payment::find($id);
         if (!$payment) return response()->json(['message' => 'Not found'], 404);
         
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'DELETE',
+            'target'    => "Payment #{$id}",
+            'description' => "Menghapus data pembayaran sebesar Rp " . number_format($payment->amount)
+        ]);
+
         $payment->delete();
         return response()->json(['status' => 'success', 'message' => 'Data dihapus']);
     }

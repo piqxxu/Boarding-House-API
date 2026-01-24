@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api; 
 use App\Http\Controllers\Controller;
 use App\Models\Room;
@@ -8,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\AuditLog;
 
 class TenantController extends Controller
 {
@@ -68,6 +68,13 @@ class TenantController extends Controller
                 return $tenant;
             });
 
+            AuditLog::create([
+            'user_name' => $request->user()->name, 
+            'action'    => 'CHECK-IN', 
+            'target'    => $user->name, 
+            'description' => "Check-in penyewa baru di kamar {$room->room_number}"
+        ]);
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Check-in Berhasil! Penghuni baru ditambahkan.',
@@ -79,15 +86,20 @@ class TenantController extends Controller
         }
     }
 
-    // 3. CHECK-OUT
     public function destroy($id)
     {
-        $tenant = Tenant::find($id);
+    $tenant = Tenant::with(['user', 'room'])->find($id);
         if (!$tenant) return response()->json(['message' => 'Not found'], 404);
 
-        // Balikin kamar jadi available
-        Room::where('id', $tenant->room_id)->update(['status' => 'available']);
-        
+        $namaPenyewa = $tenant->user ? $tenant->user->name : 'Unknown';
+        $noKamar = $tenant->room ? $tenant->room->room_number : '?';
+
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'CHECK-OUT',
+            'target'    => $namaPenyewa,
+            'description' => "Checkout penyewa dari kamar {$noKamar}"
+        ]);
         $tenant->delete();
         return response()->json(['status' => 'success']);
     }

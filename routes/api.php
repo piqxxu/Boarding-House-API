@@ -39,4 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/payments/{id}', [App\Http\Controllers\Api\PaymentController::class, 'update']); 
     Route::delete('/payments/{id}', [App\Http\Controllers\Api\PaymentController::class, 'destroy']);
 
+    //AUDIT LOGS
+    Route::get('/audit-logs', [App\Http\Controllers\Api\AuditLogController::class, 'index']);
+
 });

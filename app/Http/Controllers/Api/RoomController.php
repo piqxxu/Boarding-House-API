@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use App\Models\AuditLog;
 
 class RoomController extends Controller
 {
@@ -12,7 +13,6 @@ class RoomController extends Controller
     {
         // Get all
         $rooms = Room::all();
-        // Kembalikan response JSON
         return response()->json([
             'status' => 'success',
             'data' => $rooms
@@ -25,7 +25,7 @@ class RoomController extends Controller
     {
         // Validasi Input 
         $validated = $request->validate([
-            'room_number' => 'required|unique:rooms', // Nomor kamar tidak boleh sama
+            'room_number' => 'required|unique:rooms', 
             'price' => 'required|numeric',
             'status' => 'required|in:available,occupied,maintenance',
             'floor' => 'required',
@@ -34,6 +34,13 @@ class RoomController extends Controller
 
         // Save to Database
         $room = Room::create($validated);
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'CREATE',
+            'target'    => "Kamar {$room->room_number}",
+            'description' => "Menambahkan kamar baru (Lantai {$room->floor})"
+        ]);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Kamar berhasil ditambahkan!',
@@ -57,7 +64,6 @@ class RoomController extends Controller
         if (!$room) {
             return response()->json(['status' => 'error', 'message' => 'Kamar tidak ditemukan'], 404);
         }
-        // Validasi 
         $validated = $request->validate([
             'room_number' => 'sometimes|unique:rooms,room_number,' . $id,
             'price' => 'sometimes|numeric',
@@ -67,6 +73,12 @@ class RoomController extends Controller
         ]);
 
         $room->update($validated);
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'UPDATE', 
+            'target'    => "Kamar {$room->room_number}",
+            'description' => "Update data kamar (Harga: " . number_format($room->price) . ")" 
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -75,14 +87,20 @@ class RoomController extends Controller
         ], 200);
     }
 
-    // Delete
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $room = Room::find($id);
         if (!$room) {
             return response()->json(['status' => 'error', 'message' => 'Kamar tidak ditemukan'], 404);
         }
 
+        AuditLog::create([
+            'user_name' => $request->user()->name,
+            'action'    => 'DELETE', 
+            'target'    => "Kamar {$room->room_number}",
+            'description' => "Menghapus kamar permanen" 
+        ]);
+        
         $room->delete(); 
 
         return response()->json([
