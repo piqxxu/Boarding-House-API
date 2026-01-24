@@ -37,7 +37,7 @@ export function TenantManagementPage() {
   const fetchTenants = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem  ("auth_token");
       const res = await fetch("http://127.0.0.1:8000/api/tenants", {
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -49,7 +49,7 @@ export function TenantManagementPage() {
 
   const fetchRooms = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const res = await fetch("http://127.0.0.1:8000/api/rooms", {
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -77,7 +77,7 @@ export function TenantManagementPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const res = await fetch("http://127.0.0.1:8000/api/tenants", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
@@ -100,7 +100,7 @@ export function TenantManagementPage() {
   const handleDelete = async (id: number) => {
     if (!window.confirm("Checkout penyewa ini?")) return;
     try {
-        const token = localStorage.getItem("auth_token");
+        const token = sessionStorage.getItem("auth_token");
         const res = await fetch(`http://127.0.0.1:8000/api/tenants/${id}`, {
             method: "DELETE",
             headers: { "Authorization": `Bearer ${token}` },

@@ -31,7 +31,7 @@ export function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        const token = sessionStorage.getItem('auth_token');
         
         // Cek kalau token gak ada, langsung stop
         if (!token) {

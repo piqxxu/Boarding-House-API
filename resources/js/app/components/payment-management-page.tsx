@@ -49,7 +49,7 @@ export function PaymentManagementPage() {
   const fetchPayments = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const res = await fetch("http://127.0.0.1:8000/api/payments", {
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -61,7 +61,7 @@ export function PaymentManagementPage() {
 
   const fetchTenants = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const res = await fetch("http://127.0.0.1:8000/api/tenants", {
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -109,7 +109,7 @@ export function PaymentManagementPage() {
     const autoStatus = cleanAmount >= roomPrice ? 'paid' : 'pending';
 
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const url = editingId ? `http://127.0.0.1:8000/api/payments/${editingId}` : "http://127.0.0.1:8000/api/payments";
       const method = editingId ? "PUT" : "POST";
 
@@ -132,7 +132,7 @@ export function PaymentManagementPage() {
 
   const handleDelete = async (id: number) => {
     if(!confirm("Hapus data pembayaran ini?")) return;
-    const token = localStorage.getItem("auth_token");
+    const token = sessionStorage.getItem("auth_token");
     await fetch(`http://127.0.0.1:8000/api/payments/${id}`, { method: "DELETE", headers: { "Authorization": `Bearer ${token}` } });
     fetchPayments();
   };

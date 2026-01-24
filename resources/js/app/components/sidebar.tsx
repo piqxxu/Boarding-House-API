@@ -68,7 +68,7 @@ export function Sidebar({ currentPage, onNavigate, width, onStartResize }: Sideb
       <div className="p-4 border-t border-slate-50 shrink-0 overflow-hidden">
         {width > 180 ? (
             <a 
-                href="https://wa.me/6281234567890" 
+                href="https://wa.me/6281274985509" 
                 target="_blank" rel="noopener noreferrer"
                 className="block rounded-xl bg-slate-50 p-4 border border-slate-100 text-center hover:bg-green-50 hover:border-green-100 transition-colors cursor-pointer group overflow-hidden"
             >

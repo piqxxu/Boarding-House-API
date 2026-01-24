@@ -48,7 +48,7 @@ export function RoomManagementPage() {
   const fetchRooms = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const response = await fetch("http://127.0.0.1:8000/api/rooms", {
         headers: { "Authorization": `Bearer ${token}` },
       });
@@ -91,7 +91,7 @@ export function RoomManagementPage() {
     const cleanPrice = Number(parseRupiah(formData.price));
 
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const url = editingId 
         ? `http://127.0.0.1:8000/api/rooms/${editingId}`
         : "http://127.0.0.1:8000/api/rooms";  
@@ -120,7 +120,7 @@ export function RoomManagementPage() {
   const handleDeleteClick = async (id: number) => {
     if (!window.confirm("Yakin hapus kamar ini?")) return;
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = sessionStorage.getItem("auth_token");
       const response = await fetch(`http://127.0.0.1:8000/api/rooms/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
